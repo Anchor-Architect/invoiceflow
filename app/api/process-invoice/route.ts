@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { pdfToBase64Image } from "@/lib/pdf-to-image";
 import { extractInvoiceData } from "@/lib/claude";
 import { validateInvoice } from "@/lib/validation";
 
@@ -18,15 +17,14 @@ async function withRateLimit() {
   lastCallTime = Date.now();
 }
 
-async function callClaudeWithRetry(base64: string, retries = 2): Promise<ReturnType<typeof extractInvoiceData>> {
+async function callClaudeWithRetry(pdfBase64: string, retries = 2): Promise<ReturnType<typeof extractInvoiceData>> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       await withRateLimit();
-      return await extractInvoiceData(base64);
+      return await extractInvoiceData(pdfBase64);
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error?.status === 429 && attempt < retries) {
-        // Wait 60s then retry
         await new Promise((r) => setTimeout(r, 60000));
         continue;
       }
@@ -54,12 +52,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File must be a PDF" }, { status: 400 });
     }
 
-    // Convert PDF to image
+    // Convert PDF buffer to base64 and send directly to Claude (no image conversion needed)
     const buffer = Buffer.from(await file.arrayBuffer());
-    const base64Image = await pdfToBase64Image(buffer);
+    const pdfBase64 = buffer.toString("base64");
 
     // Call Claude with retry logic
-    const invoiceData = await callClaudeWithRetry(base64Image);
+    const invoiceData = await callClaudeWithRetry(pdfBase64);
 
     // Normalize vat_rate: Claude sometimes returns 8 instead of 0.08
     if (invoiceData.vat_rate > 1) {

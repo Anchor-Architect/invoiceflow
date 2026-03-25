@@ -23,32 +23,29 @@ const SYSTEM_PROMPT = `You are an expert at reading Vietnamese VAT invoices (Hó
 }`;
 
 export async function extractInvoiceData(
-  imageBase64: string,
-  mediaType: "image/png" | "image/jpeg" | "image/webp" = "image/png"
+  pdfBase64: string
 ): Promise<InvoiceData> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content: any[] = [
+    {
+      type: "document",
+      source: {
+        type: "base64",
+        media_type: "application/pdf",
+        data: pdfBase64,
+      },
+    },
+    {
+      type: "text",
+      text: "Extract all invoice data from this Vietnamese VAT invoice and return the JSON object only.",
+    },
+  ];
+
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType,
-              data: imageBase64,
-            },
-          },
-          {
-            type: "text",
-            text: "Extract all invoice data from this Vietnamese VAT invoice and return the JSON object only.",
-          },
-        ],
-      },
-    ],
+    messages: [{ role: "user", content }],
   });
 
   const textContent = response.content.find((c) => c.type === "text");
@@ -57,7 +54,6 @@ export async function extractInvoiceData(
   }
 
   const jsonText = textContent.text.trim();
-  // Strip markdown code blocks if present
   const cleaned = jsonText
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
