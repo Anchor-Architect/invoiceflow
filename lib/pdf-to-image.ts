@@ -25,9 +25,16 @@ export async function pdfToBase64Image(pdfBuffer: Buffer): Promise<string> {
   const savedPath = path.join(tmpDir, `${saveFilename}.1.png`);
   try { fs.unlinkSync(savedPath); } catch { /* ignore */ }
 
-  if (!result || !result.buffer) {
+  if (!result || !result.buffer || result.buffer.length === 0) {
+    // Fallback: try reading the saved file directly
+    const savedPath = path.join(tmpDir, `${saveFilename}.1.png`);
+    if (fs.existsSync(savedPath)) {
+      const fileBuffer = fs.readFileSync(savedPath);
+      try { fs.unlinkSync(savedPath); } catch { /* ignore */ }
+      if (fileBuffer.length > 0) return fileBuffer.toString("base64");
+    }
     throw new Error(
-      "Failed to convert PDF to image. Make sure GraphicsMagick and Ghostscript are installed."
+      "Failed to convert PDF to image. The PDF may be corrupted, password-protected, or GraphicsMagick/Ghostscript is not installed correctly."
     );
   }
 
