@@ -73,9 +73,10 @@ export default function ReviewCard({ data, onConfirm, confirming, confirmed }: R
 
   const [shortDesc, setShortDesc] = useState(data.invoiceData.short_description_suggestion || "");
   const [typeOfServices, setTypeOfServices] = useState(aiSuggestion);
+  const [overrideMode, setOverrideMode] = useState(false);
 
   const { invoiceData: inv, validation } = data;
-  const canConfirm = validation.passed;
+  const canConfirm = validation.passed || overrideMode;
 
   return (
     <div className={`bg-white border rounded-xl overflow-hidden transition ${confirmed ? "border-green-300" : "border-gray-200"}`}>
@@ -231,7 +232,9 @@ export default function ReviewCard({ data, onConfirm, confirming, confirmed }: R
             confirmed
               ? "bg-green-50 text-green-700 border border-green-200 cursor-default"
               : canConfirm
-              ? "bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400"
+              ? overrideMode
+                ? "bg-amber-500 hover:bg-amber-600 text-white disabled:bg-amber-300"
+                : "bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400"
               : "bg-gray-100 text-gray-400 cursor-not-allowed"
           }`}
         >
@@ -250,12 +253,42 @@ export default function ReviewCard({ data, onConfirm, confirming, confirmed }: R
               </svg>
               Writing...
             </span>
-          ) : !canConfirm ? (
+          ) : overrideMode ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              Override & Write to Sheet
+            </span>
+          ) : !validation.passed ? (
             "Cannot write — validation failed"
           ) : (
             "Confirm & Write to Sheet"
           )}
         </button>
+
+        {/* Override option — shown only when validation fails and not yet confirmed */}
+        {!validation.passed && !confirmed && (
+          <div className="mt-2">
+            {!overrideMode ? (
+              <button
+                type="button"
+                onClick={() => setOverrideMode(true)}
+                className="w-full py-2 px-4 rounded-lg text-sm font-medium border border-amber-300 text-amber-700 hover:bg-amber-50 transition"
+              >
+                Invoice is correct — override validation
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setOverrideMode(false)}
+                className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 transition"
+              >
+                Cancel override
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
